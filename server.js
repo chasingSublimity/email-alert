@@ -2,10 +2,12 @@
 
 const express = require('express');
 const morgan = require('morgan');
+const {sendEmail} = require('./emailer');
 // this will load our .env file if we're
 // running locally. On Gomix, .env files
 // are automatically loaded.
 require('dotenv').config();
+const {ALERT_FROM_EMAIL, ALERT_FROM_NAME, ALERT_TO_EMAIL,} = process.env;
 
 const {logger} = require('./utilities/logger');
 // these are custom errors we've created
@@ -30,6 +32,23 @@ app.get('*', russianRoulette);
 // YOUR MIDDLEWARE FUNCTION should be activated here using
 // `app.use()`. It needs to come BEFORE the `app.use` call
 // below, which sends a 500 and error message to the client
+const handleAlerts = (err, req, res, next) => {
+  // logic to fire sendEmail if it the error is BarError or FooError
+  if (err instanceof BarError || err instanceof FooError) {
+    logger.info(`Attempting to send error alert email to ${process.env.ALERT_TO_EMAIL}`);
+  // set emailData
+    const emailData = {
+      from: process.env.ALERT_FROM_EMAIL,
+      to: process.env.ALERT_TO_EMAIL,
+      subject: `ERROR ERROR ERROR: ${err.name}`,
+      text: `You done screwed up. The following error was thrown: ${err.stack}`
+    };
+    sendEmail(emailData);
+  }
+  next();
+};
+
+app.use(handleAlerts);
 
 app.use((err, req, res, next) => {
   logger.error(err);
